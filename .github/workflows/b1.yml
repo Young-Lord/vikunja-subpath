@@ -1,0 +1,17 @@
+name: Build Vikunja (Windows, custom frontend base)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: vikunja git ref to build
+        default: v2.7.0
+      base:
+        description: VIKUNJA_FRONTEND_BASE (leading and trailing slash required)
+        default: /vikunja-noms/
+
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi

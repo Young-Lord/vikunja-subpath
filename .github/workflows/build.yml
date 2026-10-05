@@ -83,3 +83,5 @@ jobs:
           name: vikunja-exe
           path: dist/vikunja.exe
           retention-days: 14
+
+# (forces a re-index)

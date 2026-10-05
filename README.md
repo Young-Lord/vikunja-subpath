@@ -8,7 +8,14 @@ Upstream ships root-path-only binaries: the vite `base` is baked at build time a
 rebuild. SQLite goes through `mattn/go-sqlite3`, hence the mingw-w64 cross build.
 
 Run the `Build Vikunja (Windows, custom frontend base)` workflow (inputs: `ref`,
-`base`) and grab the `vikunja-exe` artifact.
+`base`). It uploads a `vikunja-exe` artifact **and** publishes the binary as the
+release asset of tag `<ref>-subpath`, e.g.
+
+```
+https://github.com/Young-Lord/vikunja-subpath/releases/download/v2.7.0-subpath/vikunja.exe
+```
+
+which is what the server downloads (scp over the chisel tunnel dies mid-transfer).
 
 Deployment (nssm):
 

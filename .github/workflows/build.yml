@@ -1,0 +1,85 @@
+name: Build Vikunja (Windows, custom frontend base)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: vikunja git ref to build
+        default: v2.7.0
+      base:
+        description: VIKUNJA_FRONTEND_BASE (leading and trailing slash required)
+        default: /vikunja-noms/
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: go-vikunja/vikunja
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.27.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      # The frontend base path is baked in at build time (vite `base`), and the
+      # whole dist/ is go:embed'ed into the binary - so this has to happen here.
+      - name: Build frontend with subpath base
+        working-directory: frontend
+        env:
+          VIKUNJA_FRONTEND_BASE: ${{ inputs.base }}
+        run: |
+          set -euo pipefail
+          printf 'VIKUNJA_FRONTEND_BASE=%s\n' "$VIKUNJA_FRONTEND_BASE" > .env.local
+          printf '{"VERSION":"%s"}\n' '${{ inputs.ref }}' > src/version.json
+          pnpm install --frozen-lockfile
+          pnpm build
+          echo "--- dist/index.html ---"
+          grep -oE '(src|href)="[^"]*"' dist/index.html
+          grep -q "$VIKUNJA_FRONTEND_BASE" dist/index.html
+
+      - name: Install mingw-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Build vikunja.exe
+        env:
+          CGO_ENABLED: "1"
+          GOOS: windows
+          GOARCH: amd64
+          CC: x86_64-w64-mingw32-gcc
+          LDFLAGS: >-
+            -s -w -linkmode external -extldflags "-static"
+            -X "code.vikunja.io/api/pkg/version.Version=${{ inputs.ref }}"
+            -X "main.Tags=osusergo netgo"
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          go build -tags "osusergo netgo" -ldflags "$LDFLAGS" -o dist/vikunja.exe .
+          ls -lh dist/vikunja.exe
+          file dist/vikunja.exe
+          echo "--- linked dlls ---"
+          x86_64-w64-mingw32-objdump -p dist/vikunja.exe | grep -i 'DLL Name' || true
+          echo "--- embedded base path ---"
+          strings -a dist/vikunja.exe | grep -m3 -oE "${{ inputs.base }}assets/[A-Za-z0-9._-]+" || true
+          echo "--- api url placeholder (replaced at runtime from service.publicurl) ---"
+          strings -a dist/vikunja.exe | grep -m1 "window.API_URL = ''" || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vikunja-exe
+          path: dist/vikunja.exe
+          retention-days: 14

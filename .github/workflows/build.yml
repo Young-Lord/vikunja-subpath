@@ -96,11 +96,11 @@ jobs:
         run: |
           set -euo pipefail
           tag="${REF}-subpath"
-          if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" \
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" \
               --title "Vikunja ${REF} (Windows amd64, frontend base ${BASE})" \
               --notes "Windows amd64 build with the frontend built for \`${BASE}\`. Set \`service.publicurl\` to the matching public URL and strip the prefix in the reverse proxy."
           fi
-          gh release upload "$tag" dist/vikunja.exe --clobber
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" dist/vikunja.exe --clobber
 
 # (forces a re-index)
